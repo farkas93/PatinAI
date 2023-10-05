@@ -9,8 +9,8 @@ pub struct LinearLayer {
     bias: DMatrix<f64>,
     d_weights: DMatrix<f64>,
     d_bias: DMatrix<f64>,
+    input: Option<DMatrix<f64>>,
     out: DMatrix<f64>,
-    d_out: DMatrix<f64>,
 }
 
 impl Layer for LinearLayer {
@@ -18,6 +18,7 @@ impl Layer for LinearLayer {
     fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64> {
         assert_eq!(x.nrows(), self.weights.ncols());
         assert_eq!(self.bias.ncols(), x.ncols());
+        self.input = Some(x.clone());
         let t = &self.weights * x;
         assert_eq!(t.ncols(), self.bias.ncols());
         self.out = &self.weights * x + &self.bias;
@@ -26,25 +27,23 @@ impl Layer for LinearLayer {
 
     fn backward(&mut self, cache: &mut BackpropCache) {
         let batch_size = self.bias.ncols() as f64;
-        println!("d_z dims: {}, {}; d_a dims: {}, {}", cache.d_z.nrows(), cache.d_z.ncols(), self.weights.nrows(), self.weights.ncols());  
-        self.d_out = self.weights.transpose() * &cache.d_z;  
-        self.d_weights =  &cache.d_z * &cache.d_a.transpose() / batch_size;
-        //println!("d_bias dims: {}, {}", self.d_bias.nrows(), self.d_bias.ncols());
-        self.d_bias = self.sum_and_broadcast(&cache.d_z) / batch_size;
-        
-        cache.d_a = self.d_out.clone();
+        let x = self.input.as_ref().unwrap();
+
+        //println!("d_z dims: {}, {}; d_a dims: {}, {}", cache.d_z.nrows(), cache.d_z.ncols(), self.weights.nrows(), self.weights.ncols());
+        cache.d_a =  self.weights.transpose() * &cache.d_z;  
+        self.d_weights =  &cache.d_z * x.transpose() / batch_size;
+        self.d_bias = self.sum_and_broadcast(&cache.d_z) / batch_size;        
     }
     
     fn update(&mut self, learning_rate: f64) {
         // Activation functions do not have anything to update
-        // let w_broadcast =  na::DMatrix::from_element(1, self.weights.ncols(), 1.0);
-        // let d_weights_broadcasted = &self.d_weights * w_broadcast;
         assert_eq!(self.weights.nrows(), self.d_weights.nrows());
         assert_eq!(self.weights.ncols(), self.d_weights.ncols());
-        self.weights = &self.weights + learning_rate*&self.d_weights;
+        self.weights = &self.weights - learning_rate*&self.d_weights;
+
         assert_eq!(self.bias.nrows(), self.d_bias.nrows());
         assert_eq!(self.bias.ncols(), self.d_bias.ncols());
-        self.bias = &self.bias + learning_rate*&self.d_bias;
+        self.bias = &self.bias - learning_rate*&self.d_bias;
         return;
     }
 }
@@ -60,7 +59,7 @@ impl LinearLayer {
             bias: na::DMatrix::zeros(ch_out, batch_size),
             d_bias: na::DMatrix::zeros(ch_out, batch_size),
             out: na::DMatrix::zeros(ch_out, batch_size),
-            d_out: na::DMatrix::zeros(ch_out, batch_size)
+            input: None,
         };
     }
 
@@ -70,10 +69,10 @@ impl LinearLayer {
     }
 
     // TODO: do the broadcasting in the forward cycle to spare memory.
-    fn sum_and_broadcast(&self, dZ: &DMatrix<f64>) -> DMatrix<f64>{
+    fn sum_and_broadcast(&self, d_z: &DMatrix<f64>) -> DMatrix<f64>{
         let batch_size = self.bias.ncols();
-        let sums_data:  Vec<f64> = (0..dZ.nrows())
-        .map(|col_idx| dZ.row(col_idx).sum())
+        let sums_data:  Vec<f64> = (0..d_z.nrows())
+        .map(|col_idx| d_z.row(col_idx).sum())
         .collect();
         let sums = DVector::from_vec(sums_data);
         let ones_vector = DVector::<f64>::from_element(batch_size, 1.0);
@@ -97,7 +96,7 @@ mod tests {
             weights: DMatrix::from_vec(ch_out, ch_in, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
             bias: DMatrix::from_vec(ch_out, batch_size,vec![0.5, 0.5, 0.5, 0.5, 0.5, 0.5]),
             out: DMatrix::zeros(ch_out, batch_size),
-            d_out: DMatrix::zeros(1, 1),
+            input: None,
             d_bias: DMatrix::zeros(3, 2),
             d_weights: DMatrix::zeros(3, 2),
         };

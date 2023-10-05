@@ -101,17 +101,35 @@ mod tests {
 
     #[test]
     fn test_create() {
-        let x =  DMatrix::from_vec(2,4, vec![1.0, 1.0, 
+        let x =  DMatrix::from_vec(2, 11, vec![1.0, 1.0, 
                                                     1.0, 0.0, 
+                                                    1.0, 1.0,
+                                                    0.0, 1.0,
+                                                    1.0, 1.0,
+                                                    0.0, 1.0,
                                                     0.0, 0.0,
-                                                    0.0, 1.0,]);
-        let y = DMatrix::from_vec(1, 4, vec![1.0, 
+                                                    1.0, 1.0,
+                                                    0.0, 0.0,
+                                                    0.0, 1.0,
+                                                    1.0, 1.0, ]);
+        let y = DMatrix::from_vec(1, 11, vec![1.0, 
                                             0.0, 
+                                            1.0,
                                             0.0,
-                                            0.0,]);
+                                            1.0, 
+                                            0.0,
+                                            0.0,
+                                            1.0, 
+                                            0.0,
+                                            0.0,
+                                            1.0]);
 
-        let optimizer = Box::new(GradientDescent::new(100, 0.01));
-        let mut reg = LogisticRegression::new(vec![x.clone()], vec![x.clone()], vec![y.clone()], vec![y.clone()], optimizer);
+        let optimizer = Box::new(GradientDescent::new(1000, 0.1));
+        let mut reg = LogisticRegression::new(vec![x.clone()], 
+                                                                vec![x.clone()], 
+                                                                vec![y.clone()], 
+                                                                vec![y.clone()], 
+                                                                optimizer);
 
         reg.train();
         let predictions = reg.predict(&x);

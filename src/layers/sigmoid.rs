@@ -18,7 +18,7 @@ impl Layer for SigmoidLayer {
 
     fn backward(&mut self, cache: &mut BackpropCache) {
         let d_g = self.out.map(|val| val * (1.0 - val));
-        cache.d_z = &cache.d_a * d_g.transpose();
+        cache.d_z = cache.d_a.component_mul(&d_g);
     }
     
 }
