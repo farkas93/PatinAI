@@ -6,22 +6,24 @@ use super::layer::Layer;
 
 pub struct LinearLayer {
     weights: DMatrix<f64>,
-    bias: DMatrix<f64>,
+    bias: DVector<f64>,
     d_weights: DMatrix<f64>,
-    d_bias: DMatrix<f64>,
-    input: Option<DMatrix<f64>>,
+    d_bias: DVector<f64>,
     out: DMatrix<f64>,
+    input: Option<DMatrix<f64>>,
 }
 
 impl Layer for LinearLayer {
     
     fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64> {
         assert_eq!(x.nrows(), self.weights.ncols());
-        assert_eq!(self.bias.ncols(), x.ncols());
+        // Save the input for backpropagation
         self.input = Some(x.clone());
-        let t = &self.weights * x;
-        assert_eq!(t.ncols(), self.bias.ncols());
-        self.out = &self.weights * x + &self.bias;
+        // Execute forward propagation.
+        let b = &self.broadcast_bias(x.ncols());
+
+        //println!("b dims: {}, {}; b : {:?}", b.nrows(), b.ncols(), b);
+        self.out = &self.weights * x + b;
         return &self.out;
     }    
 
@@ -32,7 +34,7 @@ impl Layer for LinearLayer {
         //println!("d_z dims: {}, {}; d_a dims: {}, {}", cache.d_z.nrows(), cache.d_z.ncols(), self.weights.nrows(), self.weights.ncols());
         cache.d_a =  self.weights.transpose() * &cache.d_z;  
         self.d_weights =  &cache.d_z * x.transpose() / batch_size;
-        self.d_bias = self.sum_and_broadcast(&cache.d_z) / batch_size;        
+        self.d_bias = self.sum_each_row(&cache.d_z) / batch_size;        
     }
     
     fn update(&mut self, learning_rate: f64) {
@@ -56,27 +58,28 @@ impl LinearLayer {
         return LinearLayer { 
             weights: na::DMatrix::new_random(ch_out, ch_in),            
             d_weights: na::DMatrix::new_random(ch_out, ch_in),
-            bias: na::DMatrix::zeros(ch_out, batch_size),
-            d_bias: na::DMatrix::zeros(ch_out, batch_size),
+            bias: na::DVector::zeros(ch_out),
+            d_bias: na::DVector::zeros(ch_out),
             out: na::DMatrix::zeros(ch_out, batch_size),
             input: None,
         };
     }
 
-    pub fn set(&mut self, weights: DMatrix<f64>, bias: DMatrix<f64>) {
+    pub fn set(&mut self, weights: DMatrix<f64>, bias: DVector<f64>) {
         self.weights = weights;
         self.bias = bias;
     }
-
-    // TODO: do the broadcasting in the forward cycle to spare memory.
-    fn sum_and_broadcast(&self, d_z: &DMatrix<f64>) -> DMatrix<f64>{
-        let batch_size = self.bias.ncols();
-        let sums_data:  Vec<f64> = (0..d_z.nrows())
-        .map(|col_idx| d_z.row(col_idx).sum())
-        .collect();
-        let sums = DVector::from_vec(sums_data);
+    
+    fn broadcast_bias(&self, batch_size: usize) ->DMatrix<f64> {
         let ones_vector = DVector::<f64>::from_element(batch_size, 1.0);
-        sums * ones_vector.transpose()
+        &self.bias * ones_vector.transpose()
+    }
+
+    fn sum_each_row(&self, d_z: &DMatrix<f64>) -> DVector<f64>{
+        let sums_data:  Vec<f64> = (0..d_z.nrows())
+        .map(|idx| d_z.row(idx).sum())
+        .collect();
+        DVector::from_vec(sums_data)
     }
 }
 
@@ -94,11 +97,11 @@ mod tests {
         // Create a 2x3 matrix of weights and a 3x1 vector of biases
         let mut layer = LinearLayer {
             weights: DMatrix::from_vec(ch_out, ch_in, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
-            bias: DMatrix::from_vec(ch_out, batch_size,vec![0.5, 0.5, 0.5, 0.5, 0.5, 0.5]),
+            bias: DVector::from_vec(vec![0.5, 0.5, 0.5]),
             out: DMatrix::zeros(ch_out, batch_size),
             input: None,
-            d_bias: DMatrix::zeros(3, 2),
-            d_weights: DMatrix::zeros(3, 2),
+            d_bias: DVector::zeros(ch_out),
+            d_weights: DMatrix::zeros(ch_out, ch_in),
         };
 
         // Example input vector
@@ -127,7 +130,11 @@ mod tests {
         // Check dimensions of weights and biases
         assert_eq!(layer.weights.nrows(), rows);
         assert_eq!(layer.weights.ncols(), cols);
-        assert_eq!(layer.bias.nrows(), rows);
-        assert_eq!(layer.bias.ncols(), bs);
+        assert_eq!(layer.d_weights.nrows(), rows);
+        assert_eq!(layer.d_weights.ncols(), cols);
+        assert_eq!(layer.bias.len(), rows);
+        assert_eq!(layer.d_bias.len(), rows);
+        assert_eq!(layer.out.nrows(), rows);
+        assert_eq!(layer.out.ncols(), bs);
     }
 }
