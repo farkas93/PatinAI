@@ -23,7 +23,7 @@ fn main() {
     let b =  DVector::from_vec(vec![-3.0, -2.0, -4.0]);
     let mut lin_layer = LinearLayer::new(rows, cols, batch_size);
     lin_layer.set(w, b);
-    let mut sigmoid = SigmoidLayer::new(1, 1);
+    let mut sigmoid = SigmoidLayer::new();
     
     
     let mut x = lin_layer.forward(&input);

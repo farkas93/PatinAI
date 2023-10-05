@@ -1,11 +1,12 @@
 use nalgebra::DMatrix;
+use crate::layers::relu::ReLULayer;
 use crate::models::model::Model;
 use crate::optimizers::optimizer::Optimizer;
 use crate::layers::layer::Layer;
 use crate::layers::sigmoid::SigmoidLayer;
 use crate::layers::linear::LinearLayer;
 
-pub struct LogisticRegression {
+pub struct FullyConnectedNeuralNet {
     layers: Vec<Box<dyn Layer>>,
     data_train: Vec<DMatrix<f64>>,
     data_validate: Vec<DMatrix<f64>>,
@@ -14,7 +15,7 @@ pub struct LogisticRegression {
     optimizer: Box<dyn Optimizer>,
 }
 
-impl Model for LogisticRegression {
+impl Model for FullyConnectedNeuralNet {
     fn set_optimizer(&mut self, o: Box<dyn Optimizer>){
         self.optimizer = o;
     }
@@ -49,21 +50,34 @@ impl Model for LogisticRegression {
 
 }
 
-impl LogisticRegression {
-    fn new(x_train: Vec<DMatrix<f64>>, x_val: Vec<DMatrix<f64>>, y_train: Vec<DMatrix<f64>>, y_val: Vec<DMatrix<f64>>, o: Box<dyn Optimizer>) -> LogisticRegression{
+impl FullyConnectedNeuralNet {
+    fn new(x_train: Vec<DMatrix<f64>>, x_val: Vec<DMatrix<f64>>, y_train: Vec<DMatrix<f64>>, y_val: Vec<DMatrix<f64>>, o: Box<dyn Optimizer>) -> FullyConnectedNeuralNet{
         let first_batch = x_train.first().unwrap();
         let batch_size = first_batch.ncols();
-        let channels_in = first_batch.nrows();
-        let channels_out = 1;
-        let linear = LinearLayer::new(channels_in, channels_out, batch_size);
+        let channels_in1 = first_batch.nrows();
+        let channels_out1 = 8;
+        let channels_in2 = channels_out1;
+        let channels_out2 = 8;
+        let channels_in3 = channels_out2;
+        let channels_out3 = 1;
+
+        let linear1 = LinearLayer::new(channels_in1, channels_out1, batch_size);
+        let relu1 = ReLULayer::new();
+        let linear2 = LinearLayer::new(channels_in2, channels_out2, batch_size);
+        let relu2 = ReLULayer::new();
+        let linear3 = LinearLayer::new(channels_in3, channels_out3, batch_size);
         let sigmoid = SigmoidLayer::new();
         let mut layers: Vec<Box<dyn Layer>> = Vec::new();
     
         // Add instances of LinearLayer and SigmoidLayer
-        layers.push(Box::new(linear));
+        layers.push(Box::new(linear1));
+        layers.push(Box::new(relu1));
+        layers.push(Box::new(linear2));
+        layers.push(Box::new(relu2));
+        layers.push(Box::new(linear3));
         layers.push(Box::new(sigmoid));
 
-        return LogisticRegression {
+        return FullyConnectedNeuralNet {
             layers: layers,
             data_train: x_train,
             data_validate: x_val,
@@ -130,8 +144,8 @@ mod tests {
                                             0.0,
                                             1.0]);
 
-        let optimizer = Box::new(GradientDescent::new(1000, 0.1));
-        let mut reg = LogisticRegression::new(vec![x.clone()], 
+        let optimizer = Box::new(GradientDescent::new(1000, 0.01));
+        let mut reg = FullyConnectedNeuralNet::new(vec![x.clone()], 
                                                                 vec![x.clone()], 
                                                                 vec![y.clone()], 
                                                                 vec![y.clone()], 

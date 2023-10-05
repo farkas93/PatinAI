@@ -19,19 +19,15 @@ impl Layer for LinearLayer {
         assert_eq!(x.nrows(), self.weights.ncols());
         // Save the input for backpropagation
         self.input = Some(x.clone());
-        // Execute forward propagation.
-        let b = &self.broadcast_bias(x.ncols());
-
-        //println!("b dims: {}, {}; b : {:?}", b.nrows(), b.ncols(), b);
-        self.out = &self.weights * x + b;
+        // Execute forward pass.
+        self.out = &self.weights * x + &self.broadcast_bias(x.ncols());
         return &self.out;
     }    
 
     fn backward(&mut self, cache: &mut BackpropCache) {
         let batch_size = self.bias.ncols() as f64;
         let x = self.input.as_ref().unwrap();
-
-        //println!("d_z dims: {}, {}; d_a dims: {}, {}", cache.d_z.nrows(), cache.d_z.ncols(), self.weights.nrows(), self.weights.ncols());
+        // Do backward pass
         cache.d_a =  self.weights.transpose() * &cache.d_z;  
         self.d_weights =  &cache.d_z * x.transpose() / batch_size;
         self.d_bias = self.sum_each_row(&cache.d_z) / batch_size;        

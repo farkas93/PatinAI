@@ -4,7 +4,7 @@ use crate::{layers::layer::Layer, optimizers::backprop_cache::BackpropCache};
 
 
 pub struct LeakyReLULayer {
-    out: DMatrix<f64>,
+    out: Option<DMatrix<f64>>,
     grad : f64
 }
 
@@ -12,25 +12,24 @@ impl Layer for LeakyReLULayer {
 
 
     fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64>{
-        self.out = x.map(|val| f64::max(self.grad*val, val));
-        return &self.out;
+        self.out = Some(x.map(|val| f64::max(self.grad*val, val)));
+        return &self.out.as_ref().unwrap();
     }
 
     fn backward(&mut self, cache: &mut BackpropCache){
-        let d_g = self.out.map(|val| if val > 0.0 {1.0} else {-self.grad});
+        let d_g = self.out.as_ref().unwrap().map(|val| if val > 0.0 {1.0} else {-self.grad});
         cache.d_z = cache.d_a.component_mul(&d_g);
     }
         
 }
 
-
 impl LeakyReLULayer {    
 
-    pub fn new(channel_size: usize, batch_size: usize) -> LeakyReLULayer {
+    pub fn new() -> LeakyReLULayer {
         // Since we will transpose the weights for mutliplication with
         // the input, the nr cols has to match with number of biases.
         return LeakyReLULayer { 
-            out: DMatrix::zeros(channel_size, batch_size),
+            out: None,
             grad: 0.01
         };
     }
@@ -48,7 +47,7 @@ mod tests {
     #[test]
     fn test_leaky_relu() {
         let input = DMatrix::from_vec(5, 1, vec![0.0, 1.0, -1.0, 2.0, -2.0]);
-        let mut relu = LeakyReLULayer::new(1,1);
+        let mut relu = LeakyReLULayer::new();
        
 
         let output = relu.forward(&input);

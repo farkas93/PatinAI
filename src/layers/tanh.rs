@@ -3,19 +3,19 @@ use crate::{layers::layer::Layer, optimizers::backprop_cache::BackpropCache};
 use na::DMatrix;
 
 pub struct TanHLayer {
-    out: DMatrix<f64>,
+    out: Option<DMatrix<f64>>,
 }
 
 impl Layer for TanHLayer {
 
 
     fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64>{
-        self.out = x.map(|val| ((val).exp() - (-val).exp()) / ((val).exp() + (-val).exp()));
-        return &self.out;
+        self.out = Some(x.map(|val| ((val).exp() - (-val).exp()) / ((val).exp() + (-val).exp())));
+        return &self.out.as_ref().unwrap();
     }    
     
     fn backward(&mut self, cache: &mut BackpropCache) {
-        let d_g = self.out.map(|val| 1.0 - (val*val));
+        let d_g = self.out.as_ref().unwrap().map(|val| 1.0 - (val*val));
         cache.d_z = cache.d_a.component_mul(&d_g);
     }
     
@@ -23,11 +23,11 @@ impl Layer for TanHLayer {
 
 impl TanHLayer {
     
-    pub fn new(channel_size: usize, batch_size: usize) -> TanHLayer {
+    pub fn new() -> TanHLayer {
         // Since we will transpose the weights for mutliplication with
         // the input, the nr cols has to match with number of biases.
         return TanHLayer { 
-            out: DMatrix::zeros(channel_size, batch_size),
+            out: None,
         };
     }
 }
@@ -41,7 +41,7 @@ mod tests {
     #[test]
     fn test_tanh() {
         let input = DMatrix::from_vec(5,1,vec![0.0, 1.0, -1.0, 2.0, -2.0]);
-        let mut tanh = TanHLayer::new(1, 1);
+        let mut tanh = TanHLayer::new();
        
         let output = tanh.forward(&input);
 

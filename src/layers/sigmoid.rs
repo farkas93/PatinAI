@@ -5,19 +5,18 @@ use crate::optimizers::backprop_cache::BackpropCache;
 use super::layer::Layer;
 
 pub struct SigmoidLayer {
-    out: DMatrix<f64>,
+    out: Option<DMatrix<f64>>,
 }
 
 impl Layer for SigmoidLayer {
 
-
     fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64>{
-        self.out=x.map(|val| 1.0 / (1.0 + (-val).exp()));
-        return &self.out;
+        self.out= Some(x.map(|val| 1.0 / (1.0 + (-val).exp())));
+        return &self.out.as_ref().unwrap();
     }
 
     fn backward(&mut self, cache: &mut BackpropCache) {
-        let d_g = self.out.map(|val| val * (1.0 - val));
+        let d_g = self.out.as_ref().unwrap().map(|val| val * (1.0 - val));
         cache.d_z = cache.d_a.component_mul(&d_g);
     }
     
@@ -25,11 +24,11 @@ impl Layer for SigmoidLayer {
 
 impl SigmoidLayer {
     
-    pub fn new(channel_size: usize, batch_size: usize) -> SigmoidLayer {
+    pub fn new() -> SigmoidLayer {
         // Since we will transpose the weights for mutliplication with
         // the input, the nr cols has to match with number of biases.
         return SigmoidLayer { 
-            out: DMatrix::zeros(channel_size, batch_size),
+            out: None,
         };
     }
 }
@@ -42,7 +41,7 @@ mod tests {
     #[test]
     fn test_sigmoid() {
         let input = DMatrix::from_vec(5,1,vec![0.0, 1.0, -1.0, 2.0, -2.0]);
-        let mut sigmoid = SigmoidLayer::new(1, 1);
+        let mut sigmoid = SigmoidLayer::new();
         
         let output = sigmoid.forward(&input);
 
