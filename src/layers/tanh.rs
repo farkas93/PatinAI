@@ -15,7 +15,8 @@ impl Layer for TanHLayer {
     }    
     
     fn backward(&mut self, cache: &mut BackpropCache) {
-        cache.d_a = self.out.map(|val| 1.0 - (val*val));
+        let d_g = self.out.map(|val| 1.0 - (val*val));
+        cache.d_z = cache.d_a.component_mul(&d_g);
     }
     
 }

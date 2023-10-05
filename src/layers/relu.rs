@@ -15,7 +15,8 @@ impl Layer for ReLULayer {
 
     
     fn backward(&mut self, cache: &mut BackpropCache) {
-        cache.d_a = self.out.map(|val| if val > 0.0 { 1.0 } else { 0.0 });
+        let d_g = self.out.map(|val| if val > 0.0 { 1.0 } else { 0.0 });
+        cache.d_z = cache.d_a.component_mul(&d_g);
     }
     
 }

@@ -20,16 +20,17 @@ impl Model for LogisticRegression {
     }
 
     fn train(&mut self) {
+        let training_on = true;
         for i in 0..self.optimizer.get_num_iters(){
             // Train for an epoch
             for (batch, labels) in self.data_train.iter().zip(self.labels_train.iter()) {
-                let predictions = Self::forward(&mut self.layers, batch);
-                let cost = self.optimizer.loss(&predictions, labels);
+                let predictions = Self::forward(&mut self.layers, batch, training_on);
+                self.optimizer.loss(&predictions, labels);
                 self.optimizer.optimize(&mut self.layers);
             }
             // validate
             for (val_batch, val_labels) in self.data_validate.iter().zip(self.labels_validate.iter()) {
-                let predictions = Self::forward(&mut self.layers, val_batch);
+                let predictions = Self::forward(&mut self.layers, val_batch, training_on);
                 let val_cost = self.optimizer.loss(&predictions, val_labels);
                 println!("Loss after iteration {}: {}", i, val_cost);
             }
@@ -37,7 +38,7 @@ impl Model for LogisticRegression {
     }
 
     fn predict(&mut self,  x: &DMatrix<f64>) -> DMatrix<f64> {
-        return Self::forward(&mut self.layers, x);
+        return Self::binary_decision_boundary(&Self::forward(&mut self.layers, x, false));
     }
 
 }
@@ -45,7 +46,7 @@ impl Model for LogisticRegression {
 impl LogisticRegression {
     fn new(x_train: Vec<DMatrix<f64>>, x_val: Vec<DMatrix<f64>>, y_train: Vec<DMatrix<f64>>, y_val: Vec<DMatrix<f64>>, o: Box<dyn Optimizer>) -> LogisticRegression{
         let first_batch = x_train.first().unwrap();
-        let batch_size = first_batch.nrows();
+        let batch_size = first_batch.ncols();
         let channels_in = first_batch.nrows();
         let channels_out = 1;
         let linear = LinearLayer::new(channels_in, channels_out, batch_size);
@@ -66,13 +67,27 @@ impl LogisticRegression {
         };
     }
     
-    fn forward(layers: &mut Vec<Box<dyn Layer>>, x: &DMatrix<f64>) -> DMatrix<f64>{
+    fn binary_decision_boundary(x: &DMatrix<f64>) -> DMatrix<f64>{        
+        x.map(|v| if v > 0.5 { 1.0 } else { 0.0 })
+    }
+
+    fn cap_outputs(x: &DMatrix<f64>) -> DMatrix<f64> {        
+        x.map(|v| if v < f64::EPSILON { f64::EPSILON } else { if v > (1.0-f64::EPSILON) {1.0-f64::EPSILON} else { v } })
+    }
+
+    fn forward(layers: &mut Vec<Box<dyn Layer>>, x: &DMatrix<f64>, training: bool) -> DMatrix<f64> {
         
         let mut out = x;
         for layer in layers.iter_mut() {
             out = layer.forward(out);
         }
-        out.clone()
+        if training {
+            Self::cap_outputs(out)
+        }
+        else {            
+            println!("Pre decision vector: {:?}", out);
+            Self::binary_decision_boundary(out)
+        }
     }
 }
 
@@ -86,37 +101,27 @@ mod tests {
 
     #[test]
     fn test_create() {
-        let x =  DMatrix::from_vec(2, 10, vec![1.0, 1.0, 
+        let x =  DMatrix::from_vec(2,4, vec![1.0, 1.0, 
                                                     1.0, 0.0, 
-                                                    1.0, 1.0, 
-                                                    1.0, 1.0,
                                                     0.0, 0.0,
-                                                    0.0, 1.0,
-                                                    0.0, 0.2,
-                                                    1.0, 0.3,
-                                                    0.3, 0.3,
-                                                    0.8, 0.1]);
-        let y = DMatrix::from_vec(1, 10, vec![1.0, 
+                                                    0.0, 1.0,]);
+        let y = DMatrix::from_vec(1, 4, vec![1.0, 
                                             0.0, 
-                                            1.0, 
-                                            1.0,
                                             0.0,
-                                            0.0,
-                                            0.0,
-                                            0.0,
-                                            0.0,
-                                            0.0]);
+                                            0.0,]);
 
-        let optimizer = Box::new(GradientDescent::new(100, 0.1));
+        let optimizer = Box::new(GradientDescent::new(100, 0.01));
         let mut reg = LogisticRegression::new(vec![x.clone()], vec![x.clone()], vec![y.clone()], vec![y.clone()], optimizer);
 
         reg.train();
         let predictions = reg.predict(&x);
-
+        
         println!("Output vector: {:?}", predictions);
         println!("Solution vector: {:?}", y);
         
         // Check dimensions of weights and biases
+        assert_eq!(predictions.nrows(), y.nrows());
         assert_abs_diff_eq!(predictions, y, epsilon = 1.0e-15);
+
     }
 }

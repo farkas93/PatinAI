@@ -17,24 +17,34 @@ impl Layer for LinearLayer {
     
     fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64> {
         assert_eq!(x.nrows(), self.weights.ncols());
+        assert_eq!(self.bias.ncols(), x.ncols());
+        let t = &self.weights * x;
+        assert_eq!(t.ncols(), self.bias.ncols());
         self.out = &self.weights * x + &self.bias;
         return &self.out;
-    }
-    
+    }    
 
     fn backward(&mut self, cache: &mut BackpropCache) {
         let batch_size = self.bias.ncols() as f64;
-        self.d_out = self.weights.transpose() * &cache.d_z;
+        println!("d_z dims: {}, {}; d_a dims: {}, {}", cache.d_z.nrows(), cache.d_z.ncols(), self.weights.nrows(), self.weights.ncols());  
+        self.d_out = self.weights.transpose() * &cache.d_z;  
         self.d_weights =  &cache.d_z * &cache.d_a.transpose() / batch_size;
+        //println!("d_bias dims: {}, {}", self.d_bias.nrows(), self.d_bias.ncols());
         self.d_bias = self.sum_and_broadcast(&cache.d_z) / batch_size;
         
-        cache.d_z = self.d_out.clone();
+        cache.d_a = self.d_out.clone();
     }
     
     fn update(&mut self, learning_rate: f64) {
         // Activation functions do not have anything to update
+        // let w_broadcast =  na::DMatrix::from_element(1, self.weights.ncols(), 1.0);
+        // let d_weights_broadcasted = &self.d_weights * w_broadcast;
+        assert_eq!(self.weights.nrows(), self.d_weights.nrows());
+        assert_eq!(self.weights.ncols(), self.d_weights.ncols());
         self.weights = &self.weights + learning_rate*&self.d_weights;
-        self.bias = &self.bias + learning_rate*&self.bias;
+        assert_eq!(self.bias.nrows(), self.d_bias.nrows());
+        assert_eq!(self.bias.ncols(), self.d_bias.ncols());
+        self.bias = &self.bias + learning_rate*&self.d_bias;
         return;
     }
 }
@@ -43,7 +53,7 @@ impl LinearLayer {
     
     pub fn new(ch_in: usize, ch_out: usize, batch_size: usize) -> LinearLayer {
         // Since we will transpose the weights for mutliplication with
-        // the input, the nr cols has to match with number of biases.        
+        // the input, the nr cols has to match with number of biases.    
         return LinearLayer { 
             weights: na::DMatrix::new_random(ch_out, ch_in),            
             d_weights: na::DMatrix::new_random(ch_out, ch_in),
