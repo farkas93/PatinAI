@@ -120,7 +120,7 @@ mod tests {
 
 
     #[test]
-    fn test_create() {
+    fn test_train() {
         let x =  DMatrix::from_vec(2, 11, vec![1.0, 1.0, 
                                                     1.0, 0.0, 
                                                     1.0, 1.0,
