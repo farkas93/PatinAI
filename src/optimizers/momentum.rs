@@ -29,6 +29,7 @@ impl Optimizer for GradientMomentum{
         let d_a = self.cost_derivate.clone();
         let mut cache = BackpropCache::new(DMatrix::zeros(1, 1), d_a);
         for layer in layers.iter_mut().rev() {
+            //TODO: merge backward and update and pass the update function of the Optimizer to backward.
             layer.backward(&mut cache);
             layer.update(self.learning_rate);
         }
