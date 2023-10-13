@@ -6,9 +6,9 @@ use super::layer::Layer;
 
 pub struct LinearLayer {
     weights: DMatrix<f64>,
-    bias: DVector<f64>,
+    bias: DMatrix<f64>,
     d_weights: DMatrix<f64>,
-    d_bias: DVector<f64>,
+    d_bias: DMatrix<f64>,
     out: DMatrix<f64>,
     input: Option<DMatrix<f64>>,
 }
@@ -33,14 +33,17 @@ impl Layer for LinearLayer {
         self.d_bias = self.sum_each_row(&cache.d_z) / batch_size;        
     }
     
-    fn update(&mut self, learning_rate: f64) {
+    fn update(&mut self, learning_rate: f64, update_fn: fn(&DMatrix<f64>) -> DMatrix<f64>) {
         // Activation functions do not have anything to update
         assert_eq!(self.weights.nrows(), self.d_weights.nrows());
         assert_eq!(self.weights.ncols(), self.d_weights.ncols());
+        let update_term = update_fn(&self.d_weights); 
         self.weights = &self.weights - learning_rate*&self.d_weights;
 
         assert_eq!(self.bias.nrows(), self.d_bias.nrows());
         assert_eq!(self.bias.ncols(), self.d_bias.ncols());
+
+        let update_term = update_fn(&self.d_bias);
         self.bias = &self.bias - learning_rate*&self.d_bias;
         return;
     }
@@ -54,28 +57,30 @@ impl LinearLayer {
         return LinearLayer { 
             weights: na::DMatrix::new_random(ch_out, ch_in),            
             d_weights: na::DMatrix::new_random(ch_out, ch_in),
-            bias: na::DVector::zeros(ch_out),
-            d_bias: na::DVector::zeros(ch_out),
+            bias: na::DMatrix::zeros(ch_out, 1),
+            d_bias: na::DMatrix::zeros(ch_out, 1),
             out: na::DMatrix::zeros(ch_out, batch_size),
             input: None,
         };
     }
 
-    pub fn set(&mut self, weights: DMatrix<f64>, bias: DVector<f64>) {
+    pub fn set(&mut self, weights: DMatrix<f64>, bias: DMatrix<f64>) {
         self.weights = weights;
         self.bias = bias;
     }
     
     fn broadcast_bias(&self, batch_size: usize) ->DMatrix<f64> {
-        let ones_vector = DVector::<f64>::from_element(batch_size, 1.0);
-        &self.bias * ones_vector.transpose()
+        let ones_vector = DMatrix::<f64>::from_element(1, batch_size, 1.0);
+        &self.bias * ones_vector
     }
 
-    fn sum_each_row(&self, d_z: &DMatrix<f64>) -> DVector<f64>{
+    fn sum_each_row(&self, d_z: &DMatrix<f64>) -> DMatrix<f64>{
         let sums_data:  Vec<f64> = (0..d_z.nrows())
         .map(|idx| d_z.row(idx).sum())
         .collect();
-        DVector::from_vec(sums_data)
+        let nrows = self.bias.nrows();
+        let ncols = self.bias.ncols();
+        DMatrix::from_vec(nrows, ncols, sums_data)
     }
 }
 
@@ -93,10 +98,10 @@ mod tests {
         // Create a 2x3 matrix of weights and a 3x1 vector of biases
         let mut layer = LinearLayer {
             weights: DMatrix::from_vec(ch_out, ch_in, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
-            bias: DVector::from_vec(vec![0.5, 0.5, 0.5]),
+            bias: DMatrix::from_vec(ch_out, 1, vec![0.5, 0.5, 0.5]),
             out: DMatrix::zeros(ch_out, batch_size),
             input: None,
-            d_bias: DVector::zeros(ch_out),
+            d_bias: DMatrix::zeros(ch_out, 1),
             d_weights: DMatrix::zeros(ch_out, ch_in),
         };
 

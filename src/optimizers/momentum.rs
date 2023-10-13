@@ -4,13 +4,13 @@ use crate::optimizers::optimizer::Optimizer;
 use crate::layers::layer::Layer;
 use super::backprop_cache::BackpropCache;
 
-pub struct GradientDescent{
+pub struct GradientMomentum{
     num_iters: usize,
     learning_rate: f64,
     cost_derivate: DMatrix<f64>
 }
 
-impl Optimizer for GradientDescent{
+impl Optimizer for GradientMomentum{
     
     fn loss(&mut self, model_result: &DMatrix<f64>, ground_truth: &DMatrix<f64>) -> f64{
         let batch_size = ground_truth.ncols() as f64;
@@ -30,7 +30,7 @@ impl Optimizer for GradientDescent{
         let mut cache = BackpropCache::new(DMatrix::zeros(1, 1), d_a);
         for layer in layers.iter_mut().rev() {
             layer.backward(&mut cache);
-            layer.update(self.learning_rate, Self::update_function);
+            layer.update(self.learning_rate);
         }
     }
 
@@ -44,17 +44,13 @@ impl Optimizer for GradientDescent{
 
 }
 
-impl GradientDescent {
+impl GradientMomentum {
     
-    pub fn new(iterations: usize, learning_rate: f64) -> GradientDescent {
-        return GradientDescent {
+    pub fn new(iterations: usize, learning_rate: f64) -> GradientMomentum {
+        return GradientMomentum {
             num_iters: iterations,
             learning_rate: learning_rate,
             cost_derivate: DMatrix::zeros(1,1),
         }
-    }
-
-    pub fn update_function(input :&DMatrix<f64>) -> DMatrix<f64> {
-        input.clone()
     }
 }

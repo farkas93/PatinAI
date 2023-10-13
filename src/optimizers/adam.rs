@@ -4,13 +4,16 @@ use crate::optimizers::optimizer::Optimizer;
 use crate::layers::layer::Layer;
 use super::backprop_cache::BackpropCache;
 
-pub struct GradientDescent{
+pub struct ADAM {
     num_iters: usize,
     learning_rate: f64,
+    beta_1: f64,
+    beta_2: f64,
+    epsilon: f64,
     cost_derivate: DMatrix<f64>
 }
 
-impl Optimizer for GradientDescent{
+impl Optimizer for ADAM {
     
     fn loss(&mut self, model_result: &DMatrix<f64>, ground_truth: &DMatrix<f64>) -> f64{
         let batch_size = ground_truth.ncols() as f64;
@@ -25,12 +28,12 @@ impl Optimizer for GradientDescent{
         return cost
     }
 
-    fn optimize(&self, layers: &mut Vec<Box<dyn Layer>>){
+    fn optimize(&self, layers: &mut Vec<Box<dyn Layer>>) {
         let d_a = self.cost_derivate.clone();
         let mut cache = BackpropCache::new(DMatrix::zeros(1, 1), d_a);
         for layer in layers.iter_mut().rev() {
             layer.backward(&mut cache);
-            layer.update(self.learning_rate, Self::update_function);
+            layer.update(self.learning_rate);
         }
     }
 
@@ -44,17 +47,25 @@ impl Optimizer for GradientDescent{
 
 }
 
-impl GradientDescent {
+impl ADAM {
     
-    pub fn new(iterations: usize, learning_rate: f64) -> GradientDescent {
-        return GradientDescent {
+    pub fn new(iterations: usize, learning_rate: f64) -> ADAM {
+        return ADAM {
             num_iters: iterations,
             learning_rate: learning_rate,
+            beta_1: 0.9,
+            beta_2: 0.999,
+            epsilon: 1e-8,
             cost_derivate: DMatrix::zeros(1,1),
         }
     }
+    
+    pub fn set_betas(&self, beta_1: f64, beta_2: f64) {
+        self.beta_1 = beta_1;
+        self.beta_2 = beta_2;
+    }
 
-    pub fn update_function(input :&DMatrix<f64>) -> DMatrix<f64> {
-        input.clone()
+    pub fn set_epsilon(epsilon: f64) {
+        self.epsilon = epsilon;
     }
 }
