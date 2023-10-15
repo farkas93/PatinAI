@@ -22,6 +22,7 @@ impl Model for LogisticRegression {
     fn train(&mut self) {
         let training_on = true;
         let num_iters = self.optimizer.get_num_iters();
+        self.optimizer.init(&mut self.layers);
         let epoch_size = num_iters/10;
         for i in 0..num_iters{
             // Train for an epoch

@@ -23,6 +23,7 @@ impl Model for FullyConnectedNeuralNet {
     fn train(&mut self) {
         let training_on = true;
         let num_iters = self.optimizer.get_num_iters();
+        self.optimizer.init(&mut self.layers);
         let epoch_size = num_iters/10;
         for i in 0..num_iters{
             // Train for an epoch
@@ -117,7 +118,6 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use crate::optimizers::gradient_descent::GradientDescent;
-
 
     #[test]
     fn test_train() {

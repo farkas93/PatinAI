@@ -6,12 +6,18 @@ use super::backprop_cache::BackpropCache;
 
 pub struct GradientDescent{
     num_iters: usize,
-    learning_rate: f64,
-    cost_derivate: DMatrix<f64>
+    cost_derivate: DMatrix<f64>,
+    cache: BackpropCache
 }
 
 impl Optimizer for GradientDescent{
-    
+
+    fn init(&mut self, layers: &mut Vec<Box<dyn Layer>>) {
+        for layer in layers.iter_mut().rev() {
+            layer.register_backprop_index(&mut self.cache, Self::dummy_init);
+        }
+    }
+
     fn loss(&mut self, model_result: &DMatrix<f64>, ground_truth: &DMatrix<f64>) -> f64{
         let batch_size = ground_truth.ncols() as f64;
         let log_res = model_result.map(|x| x.ln()); // Log(A)
@@ -25,12 +31,10 @@ impl Optimizer for GradientDescent{
         return cost
     }
 
-    fn optimize(&self, layers: &mut Vec<Box<dyn Layer>>){
-        let d_a = self.cost_derivate.clone();
-        let mut cache = BackpropCache::new(DMatrix::zeros(1, 1), d_a);
+    fn optimize(&mut self, layers: &mut Vec<Box<dyn Layer>>){
+        self.cache.d_a = self.cost_derivate.clone();
         for layer in layers.iter_mut().rev() {
-            layer.backward(&mut cache);
-            layer.update(self.learning_rate, Self::update_function);
+            layer.backward(&mut self.cache);
         }
     }
 
@@ -39,7 +43,7 @@ impl Optimizer for GradientDescent{
     }
 
     fn get_lr(&self) -> f64 {
-        self.learning_rate
+        self.cache.learning_rate
     }
 
 }
@@ -49,12 +53,17 @@ impl GradientDescent {
     pub fn new(iterations: usize, learning_rate: f64) -> GradientDescent {
         return GradientDescent {
             num_iters: iterations,
-            learning_rate: learning_rate,
             cost_derivate: DMatrix::zeros(1,1),
+            cache: BackpropCache::new(learning_rate, Self::update_function)
         }
     }
 
-    pub fn update_function(input :&DMatrix<f64>) -> DMatrix<f64> {
-        input.clone()
+    pub fn update_function(bpc: &mut BackpropCache, derivate :&DMatrix<f64>, _index: usize) -> DMatrix<f64> {
+        bpc.learning_rate*derivate.clone()
+    }
+
+    pub fn dummy_init(_bpc: &mut BackpropCache, _nrows: usize, _ncols: usize) -> usize {
+        // In normal gradient descent there is no need for additional cache
+        return 0;
     }
 }
