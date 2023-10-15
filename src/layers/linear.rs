@@ -11,6 +11,8 @@ pub struct LinearLayer {
     d_bias: DMatrix<f64>,
     out: DMatrix<f64>,
     input: Option<DMatrix<f64>>,
+    bp_ind_w: Option<usize>,
+    bp_ind_b: Option<usize>
 }
 
 impl Layer for LinearLayer {
@@ -31,22 +33,24 @@ impl Layer for LinearLayer {
         cache.d_a =  self.weights.transpose() * &cache.d_z;  
         self.d_weights =  &cache.d_z * x.transpose() / batch_size;
         self.d_bias = self.sum_each_row(&cache.d_z) / batch_size;        
-    }
-    
-    fn update(&mut self, learning_rate: f64, update_fn: fn(&DMatrix<f64>) -> DMatrix<f64>) {
+
         // Activation functions do not have anything to update
         assert_eq!(self.weights.nrows(), self.d_weights.nrows());
         assert_eq!(self.weights.ncols(), self.d_weights.ncols());
-        let update_term = update_fn(&self.d_weights); 
-        self.weights = &self.weights - learning_rate*&self.d_weights;
+        self.weights = &self.weights - cache.grad_step(&self.d_weights, self.bp_ind_w.unwrap()); 
 
         assert_eq!(self.bias.nrows(), self.d_bias.nrows());
         assert_eq!(self.bias.ncols(), self.d_bias.ncols());
-
-        let update_term = update_fn(&self.d_bias);
-        self.bias = &self.bias - learning_rate*&self.d_bias;
+        self.bias = &self.bias - cache.grad_step(&self.d_bias, self.bp_ind_b.unwrap());
         return;
     }
+
+
+    fn register_backprop_index(&mut self, bpc: &mut BackpropCache, init_fn: fn(&mut BackpropCache, usize, usize) -> usize) {
+        self.bp_ind_w = Some(init_fn(bpc, self.weights.nrows(), self.weights.ncols()));
+        self.bp_ind_b = Some(init_fn(bpc, self.bias.nrows(), self.bias.ncols()));
+    }
+    
 }
 
 impl LinearLayer {
@@ -61,6 +65,8 @@ impl LinearLayer {
             d_bias: na::DMatrix::zeros(ch_out, 1),
             out: na::DMatrix::zeros(ch_out, batch_size),
             input: None,
+            bp_ind_w: None,
+            bp_ind_b: None
         };
     }
 
@@ -100,9 +106,11 @@ mod tests {
             weights: DMatrix::from_vec(ch_out, ch_in, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
             bias: DMatrix::from_vec(ch_out, 1, vec![0.5, 0.5, 0.5]),
             out: DMatrix::zeros(ch_out, batch_size),
-            input: None,
             d_bias: DMatrix::zeros(ch_out, 1),
             d_weights: DMatrix::zeros(ch_out, ch_in),
+            input: None,
+            bp_ind_w: None,
+            bp_ind_b: None
         };
 
         // Example input vector
