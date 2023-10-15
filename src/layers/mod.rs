@@ -4,6 +4,7 @@ pub mod layer;
 pub mod leakyrelu;
 pub mod linear;
 pub mod normed_linear;
+pub mod dropout;
 pub mod relu;
 pub mod sigmoid;
 pub mod tanh;
