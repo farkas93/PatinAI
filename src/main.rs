@@ -1,5 +1,5 @@
 extern crate nalgebra as na;
-use na::{DMatrix, DVector, Matrix};
+use na::{DMatrix};
 
 mod layers;
 use layers::layer::Layer;
@@ -7,10 +7,7 @@ use layers::linear::LinearLayer;
 use layers::sigmoid::SigmoidLayer;
 
 mod models;
-use models::logistic_regression;
-
 mod optimizers;
-use optimizers::gradient_descent;
 
 
 fn main() {
