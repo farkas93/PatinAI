@@ -6,15 +6,18 @@ use super::backprop_cache::BackpropCache;
 
 pub struct ADAM {
     num_iters: usize,
-    learning_rate: f64,
-    beta_1: f64,
-    beta_2: f64,
-    epsilon: f64,
-    cost_derivate: DMatrix<f64>
+    cost_derivate: DMatrix<f64>,
+    cache: BackpropCache
 }
 
 impl Optimizer for ADAM {
     
+    fn init(&mut self, layers: &mut Vec<Box<dyn Layer>>) {
+        for layer in layers.iter_mut().rev() {
+            layer.register_backprop_index(&mut self.cache, Self::init_additional_cache);
+        }
+    }
+
     fn loss(&mut self, model_result: &DMatrix<f64>, ground_truth: &DMatrix<f64>) -> f64{
         let batch_size = ground_truth.ncols() as f64;
         let log_res = model_result.map(|x| x.ln()); // Log(A)
@@ -28,12 +31,12 @@ impl Optimizer for ADAM {
         return cost
     }
 
-    fn optimize(&self, layers: &mut Vec<Box<dyn Layer>>) {
-        let d_a = self.cost_derivate.clone();
-        let mut cache = BackpropCache::new(DMatrix::zeros(1, 1), d_a);
+    fn optimize(&mut self, layers: &mut Vec<Box<dyn Layer>>){
+        self.cache.curr_iter = self.cache.curr_iter + 1;
+        self.cache.d_a = self.cost_derivate.clone();
         for layer in layers.iter_mut().rev() {
-            layer.backward(&mut cache);
-            layer.update(self.learning_rate);
+            //TODO: merge backward and update and pass the update function of the Optimizer to backward.
+            layer.backward(&mut self.cache);
         }
     }
 
@@ -42,7 +45,7 @@ impl Optimizer for ADAM {
     }
 
     fn get_lr(&self) -> f64 {
-        self.learning_rate
+        self.cache.learning_rate
     }
 
 }
@@ -52,20 +55,28 @@ impl ADAM {
     pub fn new(iterations: usize, learning_rate: f64) -> ADAM {
         return ADAM {
             num_iters: iterations,
-            learning_rate: learning_rate,
-            beta_1: 0.9,
-            beta_2: 0.999,
-            epsilon: 1e-8,
             cost_derivate: DMatrix::zeros(1,1),
+            cache: BackpropCache::new(learning_rate, Self::update_function)
         }
     }
-    
-    pub fn set_betas(&self, beta_1: f64, beta_2: f64) {
-        self.beta_1 = beta_1;
-        self.beta_2 = beta_2;
-    }
 
-    pub fn set_epsilon(epsilon: f64) {
-        self.epsilon = epsilon;
+    pub fn update_function(bpc: &mut BackpropCache, derivate :&DMatrix<f64>, index: usize) -> DMatrix<f64> {
+        // v__d = beta1 * v_d + (1-beta1)*derivate
+        bpc.set_v((bpc.beta_1 * bpc.get_v(index) + (1.0-bpc.beta_1) * derivate), index);
+
+        // s = beta2 * s + (1-beta2)*derivate^2
+        bpc.set_s((bpc.beta_2 * bpc.get_s(index) + (1.0-bpc.beta_2) * derivate.component_mul(&derivate)), index);
+        
+        // return lr * (v_d/(1-beta1^t)) / (sqrt(d_s/(1-beta2^t)) + epsilon)
+        let bias_correction1 = 1.0/(1.0-bpc.beta_1.powi(bpc.curr_iter as i32));
+        let bias_correction2 = 1.0/(1.0-bpc.beta_2.powi(bpc.curr_iter as i32));
+        bpc.learning_rate * (bpc.get_v(index) * bias_correction1).component_div(&bpc.get_s(index).map(|x| (x*bias_correction2).sqrt() + bpc.epsilon))
+    }
+    
+    pub fn init_additional_cache(bpc: &mut BackpropCache, nrows: usize, ncols: usize) -> usize {
+        let ind = bpc.append_to_vec_s(DMatrix::zeros(nrows, ncols));
+        let ind2 = bpc.append_to_vec_v(DMatrix::zeros(nrows, ncols));
+        assert_eq!(ind, ind2);
+        return ind;
     }
 }

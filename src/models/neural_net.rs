@@ -118,6 +118,9 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use crate::optimizers::gradient_descent::GradientDescent;
+    use crate::optimizers::momentum::GradientMomentum;
+    use crate::optimizers::rms_prop::RMSProp;
+    use crate::optimizers::adam::ADAM;
 
     #[test]
     fn test_train() {
@@ -144,7 +147,7 @@ mod tests {
                                             0.0,
                                             1.0]);
 
-        let optimizer = Box::new(GradientDescent::new(1000, 0.01));
+        let optimizer = Box::new(ADAM::new(1000, 0.01));
         let mut reg = FullyConnectedNeuralNet::new(vec![x.clone()], 
                                                                 vec![x.clone()], 
                                                                 vec![y.clone()], 

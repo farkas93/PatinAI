@@ -2,16 +2,22 @@
 use nalgebra::DMatrix;
 use crate::optimizers::optimizer::Optimizer;
 use crate::layers::layer::Layer;
-use super::backprop_cache::BackpropCache;
+use super::backprop_cache::{BackpropCache, self};
 
 pub struct GradientMomentum{
     num_iters: usize,
-    learning_rate: f64,
-    cost_derivate: DMatrix<f64>
+    cost_derivate: DMatrix<f64>,
+    cache: BackpropCache,
 }
 
 impl Optimizer for GradientMomentum{
     
+    fn init(&mut self, layers: &mut Vec<Box<dyn Layer>>) {
+        for layer in layers.iter_mut().rev() {
+            layer.register_backprop_index(&mut self.cache, Self::init_additional_cache);
+        }
+    }
+
     fn loss(&mut self, model_result: &DMatrix<f64>, ground_truth: &DMatrix<f64>) -> f64{
         let batch_size = ground_truth.ncols() as f64;
         let log_res = model_result.map(|x| x.ln()); // Log(A)
@@ -25,13 +31,12 @@ impl Optimizer for GradientMomentum{
         return cost
     }
 
-    fn optimize(&self, layers: &mut Vec<Box<dyn Layer>>){
-        let d_a = self.cost_derivate.clone();
-        let mut cache = BackpropCache::new(DMatrix::zeros(1, 1), d_a);
+    fn optimize(&mut self, layers: &mut Vec<Box<dyn Layer>>){
+        self.cache.curr_iter = self.cache.curr_iter + 1;
+        self.cache.d_a = self.cost_derivate.clone();
         for layer in layers.iter_mut().rev() {
             //TODO: merge backward and update and pass the update function of the Optimizer to backward.
-            layer.backward(&mut cache);
-            layer.update(self.learning_rate);
+            layer.backward(&mut self.cache);
         }
     }
 
@@ -40,8 +45,9 @@ impl Optimizer for GradientMomentum{
     }
 
     fn get_lr(&self) -> f64 {
-        self.learning_rate
+        self.cache.learning_rate
     }
+
 
 }
 
@@ -50,8 +56,20 @@ impl GradientMomentum {
     pub fn new(iterations: usize, learning_rate: f64) -> GradientMomentum {
         return GradientMomentum {
             num_iters: iterations,
-            learning_rate: learning_rate,
             cost_derivate: DMatrix::zeros(1,1),
+            cache: BackpropCache::new(learning_rate, Self::update_function)
         }
+    }
+
+    pub fn update_function(bpc: &mut BackpropCache, derivate :&DMatrix<f64>, index: usize) -> DMatrix<f64> {
+        // v__d = beta1 * v_d + (1-beta1)*derivate
+        bpc.set_v((bpc.beta_1 * bpc.get_v(index) + (1.0-bpc.beta_1) * derivate), index);
+        // return lr * v_d/(1-beta^t)
+        let bias_correction = 1.0/(1.0-bpc.beta_1.powi(bpc.curr_iter as i32));
+        bpc.learning_rate*bpc.get_v(index) * bias_correction
+    }
+    
+    pub fn init_additional_cache(bpc: &mut BackpropCache, nrows: usize, ncols: usize) -> usize {
+        bpc.append_to_vec_v(DMatrix::zeros(nrows, ncols))
     }
 }
