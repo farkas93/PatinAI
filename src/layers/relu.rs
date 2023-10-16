@@ -8,9 +8,9 @@ pub struct ReLULayer {
 
 impl Layer for ReLULayer {
 
-    fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64>{
+    fn forward(&mut self, x: DMatrix<f64>) -> DMatrix<f64>{
         self.out = Some(x.map(|val| f64::max(0.0, val)));
-        return &self.out.as_ref().unwrap();
+        return self.out.as_ref().unwrap().clone();
     }
 
     
@@ -43,7 +43,7 @@ mod tests {
         let input = DMatrix::from_vec(5,1,vec![0.0, 1.0, -1.0, 2.0, -2.0]);
         let mut relu = ReLULayer::new();
         
-        let output = relu.forward(&input);
+        let output = relu.forward(input.clone());
 
         // Expected results calculated using the sigmoid formula
         let expected = DVector::from_vec(vec![

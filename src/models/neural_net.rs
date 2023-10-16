@@ -1,4 +1,6 @@
 use nalgebra::DMatrix;
+use crate::layers;
+use crate::layers::dropout::DropoutLayer;
 use crate::layers::relu::ReLULayer;
 use crate::models::model::Model;
 use crate::optimizers::optimizer::Optimizer;
@@ -22,6 +24,7 @@ impl Model for FullyConnectedNeuralNet {
 
     fn train(&mut self) {
         let training_on = true;
+        Self::set_trainig_mode(&mut self.layers, training_on);
         let num_iters = self.optimizer.get_num_iters();
         self.optimizer.init(&mut self.layers);
         let epoch_size = num_iters/10;
@@ -46,7 +49,8 @@ impl Model for FullyConnectedNeuralNet {
     }
 
     fn predict(&mut self,  x: &DMatrix<f64>) -> DMatrix<f64> {
-        return Self::binary_decision_boundary(&Self::forward(&mut self.layers, x, false));
+        Self::set_trainig_mode(&mut self.layers, false);
+        return Self::binary_decision_boundary(Self::forward(&mut self.layers, x, false));
     }
 
 }
@@ -64,8 +68,10 @@ impl FullyConnectedNeuralNet {
 
         let linear1 = LinearLayer::new(channels_in1, channels_out1, batch_size);
         let relu1 = ReLULayer::new();
+        let dp1 = DropoutLayer::new(0.5);
         let linear2 = LinearLayer::new(channels_in2, channels_out2, batch_size);
         let relu2 = ReLULayer::new();
+        let dp2 = DropoutLayer::new(0.7);
         let linear3 = LinearLayer::new(channels_in3, channels_out3, batch_size);
         let sigmoid = SigmoidLayer::new();
         let mut layers: Vec<Box<dyn Layer>> = Vec::new();
@@ -73,8 +79,10 @@ impl FullyConnectedNeuralNet {
         // Add instances of LinearLayer and SigmoidLayer
         layers.push(Box::new(linear1));
         layers.push(Box::new(relu1));
+        layers.push(Box::new(dp1));
         layers.push(Box::new(linear2));
         layers.push(Box::new(relu2));
+        layers.push(Box::new(dp2));
         layers.push(Box::new(linear3));
         layers.push(Box::new(sigmoid));
 
@@ -88,17 +96,17 @@ impl FullyConnectedNeuralNet {
         };
     }
     
-    fn binary_decision_boundary(x: &DMatrix<f64>) -> DMatrix<f64>{        
+    fn binary_decision_boundary(x: DMatrix<f64>) -> DMatrix<f64>{        
         x.map(|v| if v > 0.5 { 1.0 } else { 0.0 })
     }
 
-    fn cap_outputs(x: &DMatrix<f64>) -> DMatrix<f64> {        
+    fn cap_outputs(x: DMatrix<f64>) -> DMatrix<f64> {        
         x.map(|v| if v < f64::EPSILON { f64::EPSILON } else { if v > (1.0-f64::EPSILON) {1.0-f64::EPSILON} else { v } })
     }
 
     fn forward(layers: &mut Vec<Box<dyn Layer>>, x: &DMatrix<f64>, training: bool) -> DMatrix<f64> {
         
-        let mut out = x;
+        let mut out = x.clone();
         for layer in layers.iter_mut() {
             out = layer.forward(out);
         }
@@ -108,6 +116,12 @@ impl FullyConnectedNeuralNet {
         else {            
             println!("Pre decision vector: {:?}", out);
             Self::binary_decision_boundary(out)
+        }
+    }
+
+    fn set_trainig_mode(layers: &mut Vec<Box<dyn Layer>>, is_on: bool) {
+        for layer in layers.iter_mut() {
+            layer.set_training_mode(is_on);
         }
     }
 }

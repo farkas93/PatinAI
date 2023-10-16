@@ -45,7 +45,7 @@ impl Model for LogisticRegression {
     }
 
     fn predict(&mut self,  x: &DMatrix<f64>) -> DMatrix<f64> {
-        return Self::binary_decision_boundary(&Self::forward(&mut self.layers, x, false));
+        return Self::binary_decision_boundary(Self::forward(&mut self.layers, x, false));
     }
 
 }
@@ -74,17 +74,17 @@ impl LogisticRegression {
         };
     }
     
-    fn binary_decision_boundary(x: &DMatrix<f64>) -> DMatrix<f64>{        
+    fn binary_decision_boundary(x: DMatrix<f64>) -> DMatrix<f64>{        
         x.map(|v| if v > 0.5 { 1.0 } else { 0.0 })
     }
 
-    fn cap_outputs(x: &DMatrix<f64>) -> DMatrix<f64> {        
+    fn cap_outputs(x: DMatrix<f64>) -> DMatrix<f64> {        
         x.map(|v| if v < f64::EPSILON { f64::EPSILON } else { if v > (1.0-f64::EPSILON) {1.0-f64::EPSILON} else { v } })
     }
 
     fn forward(layers: &mut Vec<Box<dyn Layer>>, x: &DMatrix<f64>, training: bool) -> DMatrix<f64> {
         
-        let mut out = x;
+        let mut out = x.clone();
         for layer in layers.iter_mut() {
             out = layer.forward(out);
         }

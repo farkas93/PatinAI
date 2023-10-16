@@ -10,9 +10,9 @@ pub struct SigmoidLayer {
 
 impl Layer for SigmoidLayer {
 
-    fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64>{
+    fn forward(&mut self, x: DMatrix<f64>) -> DMatrix<f64>{
         self.out= Some(x.map(|val| 1.0 / (1.0 + (-val).exp())));
-        return &self.out.as_ref().unwrap();
+        return self.out.as_ref().unwrap().clone();
     }
 
     fn backward(&mut self, cache: &mut BackpropCache) {
@@ -43,7 +43,7 @@ mod tests {
         let input = DMatrix::from_vec(5,1,vec![0.0, 1.0, -1.0, 2.0, -2.0]);
         let mut sigmoid = SigmoidLayer::new();
         
-        let output = sigmoid.forward(&input);
+        let output = sigmoid.forward(input.clone());
 
         // Expected results calculated using the sigmoid formula
         let expected = DVector::from_vec(vec![

@@ -9,9 +9,9 @@ pub struct TanHLayer {
 impl Layer for TanHLayer {
 
 
-    fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64>{
+    fn forward(&mut self, x: DMatrix<f64>) -> DMatrix<f64>{
         self.out = Some(x.map(|val| ((val).exp() - (-val).exp()) / ((val).exp() + (-val).exp())));
-        return &self.out.as_ref().unwrap();
+        return self.out.as_ref().unwrap().clone();
     }    
     
     fn backward(&mut self, cache: &mut BackpropCache) {
@@ -43,7 +43,7 @@ mod tests {
         let input = DMatrix::from_vec(5,1,vec![0.0, 1.0, -1.0, 2.0, -2.0]);
         let mut tanh = TanHLayer::new();
        
-        let output = tanh.forward(&input);
+        let output = tanh.forward(input.clone());
 
         // Expected results calculated using the sigmoid formula
         let expected = DMatrix::from_vec(5,1,vec![
