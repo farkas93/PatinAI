@@ -9,7 +9,6 @@ pub struct NormedLinearLayer {
     bias: DMatrix<f64>,
     d_weights: DMatrix<f64>,
     d_bias: DMatrix<f64>,
-    out: DMatrix<f64>,
     input: Option<DMatrix<f64>>,
     bp_ind_w: Option<usize>,
     bp_ind_b: Option<usize>
@@ -18,13 +17,13 @@ pub struct NormedLinearLayer {
 //TODO: Implement batch normalization.
 impl Layer for NormedLinearLayer {
     
-    fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64> {
+    fn forward(&mut self, x: DMatrix<f64>) -> DMatrix<f64> {
         assert_eq!(x.nrows(), self.weights.ncols());
         // Save the input for backpropagation
         self.input = Some(x.clone());
         // Execute forward pass.
-        self.out = &self.weights * x + &self.broadcast_bias(x.ncols());
-        return &self.out;
+        let batch_size = self.input.as_ref().unwrap().ncols();
+        self.weights.clone() * x + &self.broadcast_bias(batch_size)
     }    
 
     fn backward(&mut self, cache: &mut BackpropCache) {
@@ -67,7 +66,6 @@ impl NormedLinearLayer {
             d_weights: na::DMatrix::new_random(ch_out, ch_in),
             bias: na::DMatrix::zeros(ch_out, 1),
             d_bias: na::DMatrix::zeros(ch_out, 1),
-            out: na::DMatrix::zeros(ch_out, batch_size),
             input: None,
             bp_ind_w: None,
             bp_ind_b: None
@@ -109,7 +107,6 @@ mod tests {
         let mut layer = NormedLinearLayer {
             weights: DMatrix::from_vec(ch_out, ch_in, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
             bias: DMatrix::from_vec(ch_out, 1, vec![0.5, 0.5, 0.5]),
-            out: DMatrix::zeros(ch_out, batch_size),
             input: None,
             d_bias: DMatrix::zeros(ch_out, 1),
             d_weights: DMatrix::zeros(ch_out, ch_in),
@@ -120,9 +117,8 @@ mod tests {
         // Example input vector
         let input = DMatrix::from_vec(2, 2, vec![1.0, 1.0, 1.0, 1.0]);
 
-        // Forward pass
-        layer.forward(&input);
-        let output = layer.out;
+        // Forward pass        
+        let output = layer.forward(input);
         println!("Output vector: {:?}", output);
 
         // Expected result: 
@@ -147,7 +143,5 @@ mod tests {
         assert_eq!(layer.d_weights.ncols(), cols);
         assert_eq!(layer.bias.len(), rows);
         assert_eq!(layer.d_bias.len(), rows);
-        assert_eq!(layer.out.nrows(), rows);
-        assert_eq!(layer.out.ncols(), bs);
     }
 }

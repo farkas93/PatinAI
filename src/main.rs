@@ -23,7 +23,7 @@ fn main() {
     let mut sigmoid = SigmoidLayer::new();
     
     
-    let mut x = lin_layer.forward(&input);
+    let mut x = lin_layer.forward(input);
     x = sigmoid.forward(x);
     println!("Output vector: {:?}", x);
     

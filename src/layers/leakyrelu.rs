@@ -11,9 +11,9 @@ pub struct LeakyReLULayer {
 impl Layer for LeakyReLULayer {
 
 
-    fn forward(&mut self, x: &DMatrix<f64>) -> &DMatrix<f64>{
+    fn forward(&mut self, x: DMatrix<f64>) -> DMatrix<f64>{
         self.out = Some(x.map(|val| f64::max(self.grad*val, val)));
-        return &self.out.as_ref().unwrap();
+        return self.out.as_ref().unwrap().clone();
     }
 
     fn backward(&mut self, cache: &mut BackpropCache){
@@ -50,7 +50,7 @@ mod tests {
         let mut relu = LeakyReLULayer::new();
        
 
-        let output = relu.forward(&input);
+        let output = relu.forward(input.clone());
         // Expected results calculated using the sigmoid formula
         let expected = DMatrix::from_vec(5, 1, vec![
             0.0, // relu(0)
@@ -70,7 +70,7 @@ mod tests {
         let grad = 0.2;
 
         relu.set(grad);
-        let output = relu.forward(&input);
+        let output = relu.forward(input.clone());
 
         // Expected results calculated using the sigmoid formula
         let expected = DMatrix::from_vec(5, 1, vec![
