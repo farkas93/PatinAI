@@ -7,11 +7,15 @@ use super::layer::Layer;
 pub struct NormedLinearLayer {
     weights: DMatrix<f64>,
     bias: DMatrix<f64>,
+    gamma: DMatrix<f64>,
+    z: DMatrix<f64>,
     d_weights: DMatrix<f64>,
     d_bias: DMatrix<f64>,
+    d_gamma: DMatrix<f64>,
     input: Option<DMatrix<f64>>,
     bp_ind_w: Option<usize>,
-    bp_ind_b: Option<usize>
+    bp_ind_b: Option<usize>,
+    bp_ind_g: Option<usize>
 }
 
 //TODO: Implement batch normalization.
@@ -23,35 +27,43 @@ impl Layer for NormedLinearLayer {
         self.input = Some(x.clone());
         // Execute forward pass.
         let batch_size = self.input.as_ref().unwrap().ncols();
-        self.weights.clone() * x + &self.broadcast_bias(batch_size)
+        self.z = self.weights.clone() * x;
+        self.broadcast(&self.gamma, batch_size).component_mul(&self.norm(&self.z)) + self.broadcast(&self.bias, batch_size)
     }    
 
     fn backward(&mut self, cache: &mut BackpropCache) {
         let batch_size = self.bias.ncols() as f64;
         let x = self.input.as_ref().unwrap();
         // Do backward pass
-        cache.d_a =  self.weights.transpose() * &cache.d_z;  
-        self.d_weights =  &cache.d_z * x.transpose() / batch_size;
-        self.d_bias = self.sum_each_row(&cache.d_z) / batch_size;        
+        let d_z_tilde = &cache.d_z;
+        let div_bs = 1.0/(batch_size as f64);
+        let mu = self.sum_each_row(&self.z).map(|val| val*div_bs);
+        let d_z = (batch_size-1.0) * self.gamma.component_div(&self.variance(&self.z, &mu));
+        cache.d_a =  self.weights.transpose() * d_z.clone(); 
+        self.d_weights = d_z * x.transpose();
+        self.d_bias = self.sum_each_row(&d_z_tilde);
+        self.d_gamma = d_z_tilde.component_mul(&self.norm(&self.z));  
 
         // Activation functions do not have anything to update
         assert_eq!(self.weights.nrows(), self.d_weights.nrows());
         assert_eq!(self.weights.ncols(), self.d_weights.ncols());
-        let update_term = cache.grad_step(&self.d_weights, self.bp_ind_w.unwrap()); 
-        self.weights = &self.weights - cache.learning_rate*&self.d_weights;
+        self.weights = &self.weights - cache.grad_step(&self.d_weights, self.bp_ind_w.unwrap()); 
 
         assert_eq!(self.bias.nrows(), self.d_bias.nrows());
         assert_eq!(self.bias.ncols(), self.d_bias.ncols());
+        self.bias = &self.bias - cache.grad_step(&self.d_bias, self.bp_ind_b.unwrap());
 
-        let update_term = cache.grad_step(&self.d_bias, self.bp_ind_b.unwrap());
-        self.bias = &self.bias - cache.learning_rate*&self.d_bias;
-        return;
+
+        assert_eq!(self.gamma.nrows(), self.d_gamma.nrows());
+        assert_eq!(self.gamma.ncols(), self.d_gamma.ncols());
+        self.gamma = &self.gamma - cache.grad_step(&self.d_gamma, self.bp_ind_g.unwrap());
     }
 
 
     fn register_backprop_index(&mut self, bpc: &mut BackpropCache, init_fn: fn(&mut BackpropCache, usize, usize) -> usize) {
         self.bp_ind_w = Some(init_fn(bpc, self.weights.nrows(), self.weights.ncols()));
         self.bp_ind_b = Some(init_fn(bpc, self.bias.nrows(), self.bias.ncols()));
+        self.bp_ind_g = Some(init_fn(bpc, self.gamma.nrows(), self.gamma.ncols()));
     }
     
 }
@@ -66,9 +78,13 @@ impl NormedLinearLayer {
             d_weights: na::DMatrix::new_random(ch_out, ch_in),
             bias: na::DMatrix::zeros(ch_out, 1),
             d_bias: na::DMatrix::zeros(ch_out, 1),
+            gamma: na::DMatrix::zeros(ch_out, 1),
+            d_gamma: na::DMatrix::zeros(ch_out, 1),
+            z: na::DMatrix::zeros(ch_out, 1),
             input: None,
             bp_ind_w: None,
-            bp_ind_b: None
+            bp_ind_b: None,
+            bp_ind_g: None
         };
     }
 
@@ -77,18 +93,35 @@ impl NormedLinearLayer {
         self.bias = bias;
     }
     
-    fn broadcast_bias(&self, batch_size: usize) ->DMatrix<f64> {
+    fn broadcast(&self, mat: &DMatrix<f64>, batch_size: usize) ->DMatrix<f64> {
         let ones_vector = DMatrix::<f64>::from_element(1, batch_size, 1.0);
-        &self.bias * ones_vector
+        &mat.clone() * ones_vector
     }
 
-    fn sum_each_row(&self, d_z: &DMatrix<f64>) -> DMatrix<f64>{
-        let sums_data:  Vec<f64> = (0..d_z.nrows())
-        .map(|idx| d_z.row(idx).sum())
+    fn sum_each_row(&self, mat: &DMatrix<f64>) -> DMatrix<f64>{
+        // Input from (n x m) shaped matrix the sum along the columns. 
+        // Returns (n, 1)
+        let sums_data:  Vec<f64> = (0..mat.nrows())
+        .map(|idx| mat.row(idx).sum())
         .collect();
-        let nrows = self.bias.nrows();
-        let ncols = self.bias.ncols();
+        let nrows = mat.nrows();
+        let ncols = 1;
         DMatrix::from_vec(nrows, ncols, sums_data)
+    }
+
+    fn variance(&self, mat: &DMatrix<f64>, mu: &DMatrix<f64>) -> DMatrix<f64>{
+        let batch_size = mat.ncols();
+        let div_bs = 1.0/(batch_size as f64);
+        self.sum_each_row(&(mat-mu).map(|val| val.powi(2)*div_bs))
+    }
+
+    fn norm(&self, mat: &DMatrix<f64>) -> DMatrix<f64>{
+        let batch_size = mat.ncols();
+        let div_bs = 1.0/(batch_size as f64);
+        let mu = self.sum_each_row(&mat).map(|val| val*div_bs);
+        let broad_mu = self.broadcast(&mu, batch_size);
+        let var = self.variance(mat, &broad_mu);
+        (mat-broad_mu).component_div(&var.map(|val| f64::sqrt(val + f64::EPSILON)))
     }
 }
 
@@ -107,11 +140,15 @@ mod tests {
         let mut layer = NormedLinearLayer {
             weights: DMatrix::from_vec(ch_out, ch_in, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
             bias: DMatrix::from_vec(ch_out, 1, vec![0.5, 0.5, 0.5]),
+            gamma: DMatrix::from_vec(ch_out, 1, vec![1.0, 1.0, 1.0]),
+            z: DMatrix::zeros(ch_out, 1),
             input: None,
             d_bias: DMatrix::zeros(ch_out, 1),
+            d_gamma: DMatrix::zeros(ch_out, 1),
             d_weights: DMatrix::zeros(ch_out, ch_in),
             bp_ind_w: None,
-            bp_ind_b: None
+            bp_ind_b: None,
+            bp_ind_g: None
         };
 
         // Example input vector
