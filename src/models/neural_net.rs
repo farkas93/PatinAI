@@ -1,6 +1,7 @@
 use nalgebra::DMatrix;
 use crate::layers;
 use crate::layers::dropout::DropoutLayer;
+use crate::layers::normed_linear::NormedLinearLayer;
 use crate::layers::relu::ReLULayer;
 use crate::models::model::Model;
 use crate::optimizers::optimizer::Optimizer;
@@ -66,13 +67,13 @@ impl FullyConnectedNeuralNet {
         let channels_in3 = channels_out2;
         let channels_out3 = 1;
 
-        let linear1 = LinearLayer::new(channels_in1, channels_out1, batch_size);
+        let linear1 = NormedLinearLayer::new(channels_in1, channels_out1, batch_size);
         let relu1 = ReLULayer::new();
         let dp1 = DropoutLayer::new(0.5);
-        let linear2 = LinearLayer::new(channels_in2, channels_out2, batch_size);
+        let linear2 = NormedLinearLayer::new(channels_in2, channels_out2, batch_size);
         let relu2 = ReLULayer::new();
         let dp2 = DropoutLayer::new(0.7);
-        let linear3 = LinearLayer::new(channels_in3, channels_out3, batch_size);
+        let linear3 = NormedLinearLayer::new(channels_in3, channels_out3, batch_size);
         let sigmoid = SigmoidLayer::new();
         let mut layers: Vec<Box<dyn Layer>> = Vec::new();
     

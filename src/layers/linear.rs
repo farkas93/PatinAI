@@ -78,12 +78,14 @@ impl LinearLayer {
         &self.bias * ones_vector
     }
 
-    fn sum_each_row(&self, d_z: &DMatrix<f64>) -> DMatrix<f64>{
-        let sums_data:  Vec<f64> = (0..d_z.nrows())
-        .map(|idx| d_z.row(idx).sum())
+    fn sum_each_row(&self, mat: &DMatrix<f64>) -> DMatrix<f64>{
+        // Input from (n x m) shaped matrix the sum along the columns. 
+        // Returns (n, 1)
+        let sums_data:  Vec<f64> = (0..mat.nrows())
+        .map(|idx| mat.row(idx).sum())
         .collect();
-        let nrows = self.bias.nrows();
-        let ncols = self.bias.ncols();
+        let nrows = mat.nrows();
+        let ncols = 1;
         DMatrix::from_vec(nrows, ncols, sums_data)
     }
 }
