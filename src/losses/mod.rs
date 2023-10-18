@@ -1,5 +1,6 @@
 // src/losses/mod.rs
 
 pub mod loss;
-pub mod logistic;
-pub mod cross_entropy;
+pub mod reduction_strategy;
+pub mod binary_crossentropy;
+pub mod crossentropy;
