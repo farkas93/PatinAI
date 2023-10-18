@@ -9,6 +9,7 @@ use layers::activations::sigmoid::SigmoidLayer;
 mod models;
 mod optimizers;
 mod utils;
+mod losses;
 
 
 fn main() {
