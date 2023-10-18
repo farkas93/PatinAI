@@ -132,7 +132,7 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use crate::optimizers::{gradient_descent::GradientDescent, momentum::GradientMomentum, rms_prop::RMSProp, adam::ADAM};
-    use crate::losses::logistic::LogisticLoss;
+    use crate::losses::binary_crossentropy::BinaryCrossentropyLoss;
 
     #[test]
     fn test_train() {
@@ -159,7 +159,7 @@ mod tests {
                                             0.0,
                                             1.0]);
 
-        let optimizer = Box::new(ADAM::new(1000, 0.01, Box::new(LogisticLoss::new())));
+        let optimizer = Box::new(ADAM::new(1000, 0.01, Box::new(BinaryCrossentropyLoss::new())));
         let mut reg = FullyConnectedNeuralNet::new(vec![x.clone()], 
                                                                 vec![x.clone()], 
                                                                 vec![y.clone()], 
