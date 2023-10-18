@@ -19,11 +19,8 @@ impl Loss for CategoricalCrossentropyLoss {
         // Sum across all components
         let losses_per_sample = - mm::sum_each_column(&componentwise_cross_entropy);
     
-        let counter_pred = prediction.map(|val| 1.0 - val + f64::EPSILON);
-        let counter_gt = ground_truth.map(|val| 1.0 - val);
-    
         // Note: this derivative is for each component and not aggregated
-        self.derivate = Some(- (ground_truth.component_div(&prediction.map(|val| val + f64::EPSILON)) - counter_gt.component_div(&counter_pred)));
+        self.derivate = Some(-ground_truth.component_div(&prediction.map(|val| val + f64::EPSILON)));
     
         match self.reduction {
             ReductionStrategy::SumOverBatchSize => {
@@ -114,21 +111,24 @@ mod tests {
         let check_epsilon = 1e-6;
         let batch_size = 2;
         // Simple case
-        let y_pred = DMatrix::from_row_slice(3, batch_size, &[0.05, 0.95, 0.0, 0.1, 0.8, 0.1]);
-        let y_true = DMatrix::from_row_slice(3, batch_size, &[0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+        let y_pred = DMatrix::from_vec(3, batch_size, vec![0.05, 0.95, 0.0, 0.1, 0.8, 0.1]);
+        let y_true = DMatrix::from_vec(3, batch_size, vec![0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
 
         cel.cost(&y_pred, &y_true);
         let derivative = cel.get_derivate();
-        let expected_derivative = DMatrix::from_vec(3, batch_size, vec![ 0.5, -0.02631581,  0.5, 0.5, 0.5, -4.5]);
+        let expected_derivative = DMatrix::from_vec(3, batch_size, vec![0.0, -1.05263158, 0.0, 0.0, 0.0, -10.0]);
 
         assert_abs_diff_eq!(derivative, expected_derivative, epsilon = check_epsilon);
 
-        // Edge case
-        let y_pred = DMatrix::from_vec(2, 2, vec![0.999999, 0.000001, 0.5, 0.5]);
-        let y_true = DMatrix::from_vec(2, 2, vec![1.0, 0.0, 1.0, 0.0]);
+        // Edge case with SumOverBatchSize
+        let y_pred = DMatrix::from_vec(2, batch_size, vec![0.999999, 0.000001, 0.5, 0.5]);
+        let y_true = DMatrix::from_vec(2, batch_size, vec![1.0, 0.0, 1.0, 0.0]);
+        
+        let expected_derivative = DMatrix::from_vec(2, batch_size, vec![-1.000001, 0.0, -2.0, 0.0 ]);
 
         cel.cost(&y_pred, &y_true);
         let derivative = cel.get_derivate();
+        assert_abs_diff_eq!(derivative, expected_derivative, epsilon = check_epsilon);
         // Here, the expected derivatives can be calculated using the formula for the derivative of the cross entropy loss.
         // Due to the potential complexity of manual calculations for this case, it's better to verify with a trusted source 
         // or to use an alternate, simple implementation to check against. 
