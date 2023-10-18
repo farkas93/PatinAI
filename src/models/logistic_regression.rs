@@ -28,7 +28,7 @@ impl Model for LogisticRegression {
             // Train for an epoch
             for (batch, labels) in self.data_train.iter().zip(self.labels_train.iter()) {
                 let predictions = Self::forward(&mut self.layers, batch, training_on);
-                self.optimizer.loss(&predictions, labels);
+                self.optimizer.compute_loss(&predictions, labels);
                 self.optimizer.optimize(&mut self.layers);
             }
             if i%epoch_size == 0 {
@@ -36,7 +36,7 @@ impl Model for LogisticRegression {
                 let mut sum_loss = 0.0;
                 for (val_batch, val_labels) in self.data_validate.iter().zip(self.labels_validate.iter()) {
                     let predictions = Self::forward(&mut self.layers, val_batch, training_on);
-                    sum_loss = sum_loss + self.optimizer.loss(&predictions, val_labels);
+                    sum_loss = sum_loss + self.optimizer.compute_loss(&predictions, val_labels);
                 }
                 let val_loss = sum_loss/ (self.data_validate.len() as f64);
                 println!("Epoch: {}; Loss after iteration {}: {}", (i/epoch_size)+1, i, val_loss);

@@ -1,12 +1,13 @@
 
 use na::DMatrix;
+use crate::losses::loss::Loss;
 use crate::optimizers::optimizer::Optimizer;
 use crate::layers::layer::Layer;
 use super::backprop_cache::BackpropCache;
 
 pub struct RMSProp{
     num_iters: usize,
-    cost_derivate: DMatrix<f64>,
+    loss: Box<dyn Loss>,
     cache: BackpropCache
 }
 
@@ -18,22 +19,13 @@ impl Optimizer for RMSProp{
         }
     }
 
-    fn loss(&mut self, model_result: &DMatrix<f64>, ground_truth: &DMatrix<f64>) -> f64{
-        let batch_size = ground_truth.ncols() as f64;
-        let log_res = model_result.map(|x| x.ln()); // Log(A)
-        let counter_res = model_result.map(|x| (1.0 - x)); 
-        let counter_log_res = counter_res.map(|x| x.ln()); // Log(1 - A)
-        let counter_gt = ground_truth.map(|x| (1.0 - x)); // 1 - Y
-        let logprobs = ground_truth.dot(&log_res) + counter_gt.dot(&counter_log_res);
-        let cost = - logprobs / batch_size;
-
-        self.cost_derivate = - (ground_truth.component_div(model_result) - counter_gt.component_div(&counter_res));
-        return cost
+    fn compute_loss(&mut self, prediction: &DMatrix<f64>, ground_truth: &DMatrix<f64>) -> f64{
+        self.loss.cost(prediction, ground_truth)
     }
 
     fn optimize(&mut self, layers: &mut Vec<Box<dyn Layer>>){
         self.cache.curr_iter = self.cache.curr_iter + 1;
-        self.cache.d_a = self.cost_derivate.clone();
+        self.cache.d_a = self.loss.get_derivate();
         for layer in layers.iter_mut().rev() {
             //TODO: merge backward and update and pass the update function of the Optimizer to backward.
             layer.backward(&mut self.cache);
@@ -52,10 +44,10 @@ impl Optimizer for RMSProp{
 
 impl RMSProp {
     
-    pub fn new(iterations: usize, learning_rate: f64) -> RMSProp {
+    pub fn new(iterations: usize, learning_rate: f64, loss: Box<dyn Loss>) -> RMSProp {
         return RMSProp {
             num_iters: iterations,
-            cost_derivate: DMatrix::zeros(1,1),
+            loss: loss,
             cache: BackpropCache::new(learning_rate, Self::update_function)
         }
     }

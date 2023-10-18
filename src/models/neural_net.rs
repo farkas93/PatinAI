@@ -28,7 +28,7 @@ impl Model for FullyConnectedNeuralNet {
             // Train for an epoch
             for (batch, labels) in self.data_train.iter().zip(self.labels_train.iter()) {
                 let predictions = Self::forward(&mut self.layers, batch, training_on);
-                self.optimizer.loss(&predictions, labels);
+                self.optimizer.compute_loss(&predictions, labels);
                 self.optimizer.optimize(&mut self.layers);
             }
             if i%epoch_size == 0 {
@@ -36,7 +36,7 @@ impl Model for FullyConnectedNeuralNet {
                 let mut sum_loss = 0.0;
                 for (val_batch, val_labels) in self.data_validate.iter().zip(self.labels_validate.iter()) {
                     let predictions = Self::forward(&mut self.layers, val_batch, training_on);
-                    sum_loss = sum_loss + self.optimizer.loss(&predictions, val_labels);
+                    sum_loss = sum_loss + self.optimizer.compute_loss(&predictions, val_labels);
                 }
                 let val_loss = sum_loss/ (self.data_validate.len() as f64);
                 println!("Epoch: {}; Loss after iteration {}: {}", (i/epoch_size)+1, i, val_loss);
@@ -132,6 +132,7 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use crate::optimizers::{gradient_descent::GradientDescent, momentum::GradientMomentum, rms_prop::RMSProp, adam::ADAM};
+    use crate::losses::logistic::LogisticLoss;
 
     #[test]
     fn test_train() {
@@ -158,7 +159,7 @@ mod tests {
                                             0.0,
                                             1.0]);
 
-        let optimizer = Box::new(ADAM::new(1000, 0.01));
+        let optimizer = Box::new(ADAM::new(1000, 0.01, Box::new(LogisticLoss::new())));
         let mut reg = FullyConnectedNeuralNet::new(vec![x.clone()], 
                                                                 vec![x.clone()], 
                                                                 vec![y.clone()], 
