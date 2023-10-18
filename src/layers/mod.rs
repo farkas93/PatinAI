@@ -1,10 +1,6 @@
 // src/layers/mod.rs
-
+pub mod activations;
 pub mod layer;
-pub mod leakyrelu;
 pub mod linear;
-pub mod normed_linear;
+pub mod batch_norm;
 pub mod dropout;
-pub mod relu;
-pub mod sigmoid;
-pub mod tanh;

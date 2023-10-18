@@ -1,8 +1,8 @@
-use nalgebra::DMatrix;
+use na::DMatrix;
 use crate::models::model::Model;
 use crate::optimizers::optimizer::Optimizer;
 use crate::layers::layer::Layer;
-use crate::layers::sigmoid::SigmoidLayer;
+use crate::layers::activations::sigmoid::SigmoidLayer;
 use crate::layers::linear::LinearLayer;
 
 pub struct LogisticRegression {

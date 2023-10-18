@@ -1,13 +1,8 @@
-use nalgebra::DMatrix;
-use crate::layers;
-use crate::layers::dropout::DropoutLayer;
-use crate::layers::normed_linear::NormedLinearLayer;
-use crate::layers::relu::ReLULayer;
+use na::DMatrix;
+use crate::layers::{layer::Layer, dropout::DropoutLayer, batch_norm::BatchNormLayer, linear::LinearLayer};
+use crate::layers::activations::{relu::ReLULayer, sigmoid::SigmoidLayer};
 use crate::models::model::Model;
 use crate::optimizers::optimizer::Optimizer;
-use crate::layers::layer::Layer;
-use crate::layers::sigmoid::SigmoidLayer;
-use crate::layers::linear::LinearLayer;
 
 pub struct FullyConnectedNeuralNet {
     layers: Vec<Box<dyn Layer>>,
@@ -67,21 +62,25 @@ impl FullyConnectedNeuralNet {
         let channels_in3 = channels_out2;
         let channels_out3 = 1;
 
-        let linear1 = NormedLinearLayer::new(channels_in1, channels_out1, batch_size);
+        let linear1 = LinearLayer::new(channels_in1, channels_out1, batch_size);
+        let b_norm1 = BatchNormLayer::new(channels_out1);
         let relu1 = ReLULayer::new();
         let dp1 = DropoutLayer::new(0.5);
-        let linear2 = NormedLinearLayer::new(channels_in2, channels_out2, batch_size);
+        let linear2 = LinearLayer::new(channels_in2, channels_out2, batch_size);
+        let b_norm2 = BatchNormLayer::new(channels_out2);
         let relu2 = ReLULayer::new();
         let dp2 = DropoutLayer::new(0.7);
-        let linear3 = NormedLinearLayer::new(channels_in3, channels_out3, batch_size);
+        let linear3 = LinearLayer::new(channels_in3, channels_out3, batch_size);
         let sigmoid = SigmoidLayer::new();
         let mut layers: Vec<Box<dyn Layer>> = Vec::new();
     
         // Add instances of LinearLayer and SigmoidLayer
         layers.push(Box::new(linear1));
+        layers.push(Box::new(b_norm1));
         layers.push(Box::new(relu1));
         layers.push(Box::new(dp1));
         layers.push(Box::new(linear2));
+        layers.push(Box::new(b_norm2));
         layers.push(Box::new(relu2));
         layers.push(Box::new(dp2));
         layers.push(Box::new(linear3));
@@ -132,10 +131,7 @@ impl FullyConnectedNeuralNet {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use crate::optimizers::gradient_descent::GradientDescent;
-    use crate::optimizers::momentum::GradientMomentum;
-    use crate::optimizers::rms_prop::RMSProp;
-    use crate::optimizers::adam::ADAM;
+    use crate::optimizers::{gradient_descent::GradientDescent, momentum::GradientMomentum, rms_prop::RMSProp, adam::ADAM};
 
     #[test]
     fn test_train() {

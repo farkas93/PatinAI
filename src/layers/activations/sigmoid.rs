@@ -1,8 +1,6 @@
-extern crate nalgebra as na;
 use na::{DVector, DMatrix};
 use crate::optimizers::backprop_cache::BackpropCache;
-
-use super::layer::Layer;
+use crate::layers::layer::Layer;
 
 pub struct SigmoidLayer {
     out: Option<DMatrix<f64>>,

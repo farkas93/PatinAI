@@ -1,5 +1,4 @@
-use nalgebra::DMatrix;
-
+use na::DMatrix;
 use super::layer::Layer;
 
 pub struct DropoutLayer {

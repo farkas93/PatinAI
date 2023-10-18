@@ -1,5 +1,5 @@
 
-use nalgebra::DMatrix;
+use na::DMatrix;
 use crate::optimizers::optimizer::Optimizer;
 use crate::layers::layer::Layer;
 use super::backprop_cache::BackpropCache;

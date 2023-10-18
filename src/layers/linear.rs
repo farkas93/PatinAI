@@ -1,7 +1,6 @@
-extern crate nalgebra as na;
 use na::{DVector, DMatrix};
 use crate::optimizers::backprop_cache::BackpropCache;
-
+use crate::utils::matrix_manipulations as mm;
 use super::layer::Layer;
 
 pub struct LinearLayer {
@@ -22,7 +21,7 @@ impl Layer for LinearLayer {
         self.input = Some(x.clone());
         // Execute forward pass.
         let batch_size = self.input.as_ref().unwrap().ncols();
-        self.weights.clone() * x + &self.broadcast_bias(batch_size)
+        self.weights.clone() * x + mm::broadcast(&self.bias, batch_size)
     }    
 
     fn backward(&mut self, cache: &mut BackpropCache) {
@@ -31,7 +30,7 @@ impl Layer for LinearLayer {
         // Do backward pass
         cache.d_a =  self.weights.transpose() * &cache.d_z;  
         self.d_weights =  &cache.d_z * x.transpose() / batch_size;
-        self.d_bias = self.sum_each_row(&cache.d_z) / batch_size;        
+        self.d_bias = mm::sum_each_row(&cache.d_z) / batch_size;        
 
         // Activation functions do not have anything to update
         assert_eq!(self.weights.nrows(), self.d_weights.nrows());
@@ -68,26 +67,11 @@ impl LinearLayer {
         };
     }
 
-    pub fn set(&mut self, weights: DMatrix<f64>, bias: DMatrix<f64>) {
+    pub fn set_w_and_b(&mut self, weights: DMatrix<f64>, bias: DMatrix<f64>) {
         self.weights = weights;
         self.bias = bias;
     }
     
-    fn broadcast_bias(&self, batch_size: usize) ->DMatrix<f64> {
-        let ones_vector = DMatrix::<f64>::from_element(1, batch_size, 1.0);
-        &self.bias * ones_vector
-    }
-
-    fn sum_each_row(&self, mat: &DMatrix<f64>) -> DMatrix<f64>{
-        // Input from (n x m) shaped matrix the sum along the columns. 
-        // Returns (n, 1)
-        let sums_data:  Vec<f64> = (0..mat.nrows())
-        .map(|idx| mat.row(idx).sum())
-        .collect();
-        let nrows = mat.nrows();
-        let ncols = 1;
-        DMatrix::from_vec(nrows, ncols, sums_data)
-    }
 }
 
 #[cfg(test)]
@@ -113,7 +97,7 @@ mod tests {
         };
 
         // Example input vector
-        let input = DMatrix::from_vec(2, 2, vec![1.0, 1.0, 1.0, 1.0]);
+        let input = DMatrix::from_vec(ch_in, batch_size, vec![1.0, 1.0, 1.0, 1.0]);
 
         // Forward pass        
         let output = layer.forward(input);
