@@ -19,7 +19,7 @@ impl Optimizer for GradientDescent{
         }
     }
 
-    fn loss(&mut self, prediction: &DMatrix<f64>, ground_truth: &DMatrix<f64>) -> f64{
+    fn compute_loss(&mut self, prediction: &DMatrix<f64>, ground_truth: &DMatrix<f64>) -> f64{
         self.loss.cost(prediction, ground_truth)
     }
 
