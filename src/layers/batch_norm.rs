@@ -158,7 +158,6 @@ mod tests {
 
         // Forward pass        
         let output = layer.forward(input);
-        println!("Output vector: {:?}", output);
 
         // Expected result: 
         let expected = DMatrix::from_vec(channels, batch_size, vec![0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
