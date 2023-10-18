@@ -1,5 +1,4 @@
-use std::io;
-use nalgebra::DMatrix;
+use na::DMatrix;
 
 pub struct BackpropCache {
     pub d_z: DMatrix<f64>,

@@ -1,7 +1,5 @@
-extern crate nalgebra as na;
 use na::DMatrix;
-use crate::{layers::layer::Layer, optimizers::backprop_cache::BackpropCache};
-
+use crate::{optimizers::backprop_cache::BackpropCache, layers::layer::Layer};
 
 pub struct LeakyReLULayer {
     out: Option<DMatrix<f64>>,

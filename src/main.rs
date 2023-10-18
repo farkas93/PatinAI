@@ -4,10 +4,11 @@ use na::{DMatrix};
 mod layers;
 use layers::layer::Layer;
 use layers::linear::LinearLayer;
-use layers::sigmoid::SigmoidLayer;
+use layers::activations::sigmoid::SigmoidLayer;
 
 mod models;
 mod optimizers;
+mod utils;
 
 
 fn main() {
@@ -19,7 +20,7 @@ fn main() {
     let w =  DMatrix::from_vec(rows, cols, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
     let b =  DMatrix::from_vec(cols, 1, vec![-3.0, -2.0, -4.0]);
     let mut lin_layer = LinearLayer::new(rows, cols, batch_size);
-    lin_layer.set(w, b);
+    lin_layer.set_w_and_b(w, b);
     let mut sigmoid = SigmoidLayer::new();
     
     

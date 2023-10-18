@@ -1,6 +1,6 @@
 
 use crate::layers::layer::Layer;
-use nalgebra::DMatrix;
+use na::DMatrix;
 
 pub trait Optimizer {
     fn init(&mut self, layers: &mut Vec<Box<dyn Layer>>);
