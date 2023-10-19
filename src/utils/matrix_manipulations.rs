@@ -34,6 +34,14 @@ pub fn vertical_broadcast(mat: &DMatrix<f64>, nrows: usize) -> DMatrix<f64> {
     ones_vector * &mat.clone() 
 }
 
+pub fn mat_clip(mat: &DMatrix<f64>, min: f64, max: f64) -> DMatrix<f64> {
+    mat.map(|val| clip(val, min, max))
+}
+
+pub fn clip(val: f64, min: f64, max: f64) -> f64 {
+    val.max(min+f64::EPSILON).min(max- f64::EPSILON)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
