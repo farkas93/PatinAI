@@ -10,6 +10,7 @@ mod models;
 mod optimizers;
 mod utils;
 mod losses;
+mod regularizers;
 
 
 fn main() {
